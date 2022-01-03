@@ -38,6 +38,9 @@ func main() {
 	flag.BoolVar(&race, "race", flagRaceDefault, flagRaceUsage)
 	flag.BoolVar(&race, "r", flagRaceDefault, flagRaceUsage)
 
+	var once bool
+	flag.BoolVar(&once, "once", false, "tear down any docker containers that were started for this test run when it's done")
+
 	flag.Parse()
 
 	cmdArgs := []string{"--"}
@@ -68,6 +71,13 @@ func main() {
 		_, _ = fmt.Fprintf(os.Stderr, "error running test command: %v", err)
 		os.Exit(1)
 	}
+
+	if once {
+		if err := teardownDocker(composeFile); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "error tearing down docker containers, some may still be up: %v", err)
+			os.Exit(1)
+		}
+	}
 }
 
 func setupDocker(composeFile string) error {
@@ -80,6 +90,23 @@ func setupDocker(composeFile string) error {
 	}
 
 	cmd := exec.Command("docker", "compose", "-f", composeFile, "up", "-d", "--wait")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	return cmd.Run()
+}
+
+func teardownDocker(composeFile string) error {
+	_, err := os.Stat(composeFile)
+	if errors.Is(err, os.ErrNotExist) {
+		fmt.Println("no compose file found, skipping docker image setup...")
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to check for existence of docker compose file: %v", err)
+	}
+
+	cmd := exec.Command("docker", "compose", "-f", composeFile, "down")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
