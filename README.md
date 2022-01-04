@@ -8,6 +8,12 @@ Some shortcuts for go development
 
 Sets up any docker-compose environment and runs the test suite for the current package / module
 
+### Installation
+
+```shell
+go install github.com/pfouilloux/goshorts/cmd/gotest@latest
+```
+
 ### Usage
 
 ```shell
@@ -20,9 +26,7 @@ gotest [-cf/-compose_file FILE] [-c/-cover] [-r/-race] [-once] <PATH>
 example: 
   > gotest -cf my_compose_file.yml -c -r -once ./...
 ```
-
-### Raw command
-
+##### Raw command
 The -raw flag can be used to pass in custom go test command. All other testing flags will be ignored but docker & other environment flags will still
 be used.
 
