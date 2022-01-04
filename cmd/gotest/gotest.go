@@ -15,6 +15,9 @@ const (
 	flagComposeFileDefault = "docker-compose.yml"
 	flagComposeFileUsage   = "set the docker compose file (defaults to docker-compose.yml)"
 
+	flagDependenciesDefault = ""
+	flagDependenciesUsage   = "space separated list of which services to start from docker compose, will start all services if blank or not provided"
+
 	flagCoverDefault = true
 	flagCoverUsage   = "show code coverage percentage"
 
@@ -26,6 +29,10 @@ func main() {
 	var composeFile string
 	flag.StringVar(&composeFile, "compose_file", flagComposeFileDefault, flagComposeFileUsage)
 	flag.StringVar(&composeFile, "cf", flagComposeFileDefault, flagComposeFileUsage)
+
+	var services string
+	flag.StringVar(&services, "dependencies", flagDependenciesDefault, flagDependenciesUsage)
+	flag.StringVar(&services, "dep", flagDependenciesDefault, flagDependenciesUsage)
 
 	var rawCmd string
 	flag.StringVar(&rawCmd, "raw", "", "input a custom command, this will override any other test command arguments (ex: -cover, -race)")
@@ -62,10 +69,12 @@ func main() {
 		}
 	}
 
-	if err := setupDocker(composeFile); err != nil {
+	if err := setupDocker(composeFile, services); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "error setting up docker compose: %v", err)
 		os.Exit(1)
 	}
+
+	os.Setenv("LOCALSTACK_ENDPOINT", "http://localhost:4566")
 
 	if err := cmd.Run("go_test", cmdArgs); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "error running test command: %v", err)
@@ -80,7 +89,7 @@ func main() {
 	}
 }
 
-func setupDocker(composeFile string) error {
+func setupDocker(composeFile string, services string) error {
 	_, err := os.Stat(composeFile)
 	if errors.Is(err, os.ErrNotExist) {
 		fmt.Println("no compose file found, skipping docker image setup...")
@@ -89,7 +98,12 @@ func setupDocker(composeFile string) error {
 		return fmt.Errorf("failed to check for existence of docker compose file: %v", err)
 	}
 
-	cmd := exec.Command("docker", "compose", "-f", composeFile, "up", "-d", "--wait")
+	args := []string{"compose", "-f", composeFile, "up", "-d", "--wait"}
+	if services != "" {
+		args = append(args, strings.Split(strings.TrimSpace(services), " ")...)
+	}
+
+	cmd := exec.Command("docker", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
