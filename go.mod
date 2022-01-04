@@ -1,4 +1,4 @@
-module go-test-cmds
+module github.com/pfouilloux/go-test-cmds
 
 go 1.17
 
