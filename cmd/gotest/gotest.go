@@ -23,6 +23,9 @@ const (
 
 	flagRaceDefault = false
 	flagRaceUsage   = "run race detection on tests"
+
+	flagTagsDefault = ""
+	flagTagsUsage   = "space separated list of build tags"
 )
 
 func main() {
@@ -44,6 +47,10 @@ func main() {
 	var race bool
 	flag.BoolVar(&race, "race", flagRaceDefault, flagRaceUsage)
 	flag.BoolVar(&race, "r", flagRaceDefault, flagRaceUsage)
+
+	var tags string
+	flag.StringVar(&tags, "tags", flagTagsDefault, flagTagsUsage)
+	flag.StringVar(&tags, "t", flagTagsDefault, flagTagsUsage)
 
 	var once bool
 	flag.BoolVar(&once, "once", false, "tear down any docker containers that were started for this test run when it's done")
