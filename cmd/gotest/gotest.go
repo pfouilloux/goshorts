@@ -69,6 +69,10 @@ func main() {
 			cmdArgs = append(cmdArgs, "-race")
 		}
 
+		if tags != "" {
+			cmdArgs = append(cmdArgs, append([]string{"-tags"}, strings.Split(tags, " ")...)...)
+		}
+
 		if len(flag.Args()) == 0 {
 			cmdArgs = append(cmdArgs, "./...")
 		} else {
