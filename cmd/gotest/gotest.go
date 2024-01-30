@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	flagComposeFileDefault = "docker-compose.yml"
-	flagComposeFileUsage   = "set the docker compose file (defaults to docker-compose.yml)"
+	flagComposeFileUsage = "set the docker compose file (defaults to docker-compose.yml)"
 
 	flagDependenciesDefault = ""
 	flagDependenciesUsage   = "space separated list of which services to start from docker compose, will start all services if blank or not provided"
@@ -30,8 +29,8 @@ const (
 
 func main() {
 	var composeFile string
-	flag.StringVar(&composeFile, "compose_file", flagComposeFileDefault, flagComposeFileUsage)
-	flag.StringVar(&composeFile, "cf", flagComposeFileDefault, flagComposeFileUsage)
+	flag.StringVar(&composeFile, "compose_file", "", flagComposeFileUsage)
+	flag.StringVar(&composeFile, "cf", "", flagComposeFileUsage)
 
 	var services string
 	flag.StringVar(&services, "dependencies", flagDependenciesDefault, flagDependenciesUsage)
@@ -80,6 +79,12 @@ func main() {
 		}
 	}
 
+	composeFile, err := findComposeFile(composeFile)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "error finding compose file: %v", err)
+		os.Exit(1)
+	}
+
 	if err := setupDocker(composeFile, services); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "error setting up docker compose: %v", err)
 		os.Exit(1)
@@ -101,12 +106,9 @@ func main() {
 }
 
 func setupDocker(composeFile string, services string) error {
-	_, err := os.Stat(composeFile)
-	if errors.Is(err, os.ErrNotExist) {
+	if composeFile == "" {
 		fmt.Println("no compose file found, skipping docker image setup...")
 		return nil
-	} else if err != nil {
-		return fmt.Errorf("failed to check for existence of docker compose file: %v", err)
 	}
 
 	args := []string{"compose", "-f", composeFile, "up", "-d", "--wait"}
@@ -123,12 +125,9 @@ func setupDocker(composeFile string, services string) error {
 }
 
 func teardownDocker(composeFile string) error {
-	_, err := os.Stat(composeFile)
-	if errors.Is(err, os.ErrNotExist) {
-		fmt.Println("no compose file found, skipping docker image setup...")
+	if composeFile == "" {
+		fmt.Println("no compose file found, skipping docker image teardown...")
 		return nil
-	} else if err != nil {
-		return fmt.Errorf("failed to check for existence of docker compose file: %v", err)
 	}
 
 	cmd := exec.Command("docker", "compose", "-f", composeFile, "down")
@@ -137,4 +136,33 @@ func teardownDocker(composeFile string) error {
 	cmd.Stdin = os.Stdin
 
 	return cmd.Run()
+}
+
+func findComposeFile(composeFile string) (string, error) {
+	if composeFile == "" {
+		return findDefaultComposeFile()
+	}
+
+	_, err := os.Stat(composeFile)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", nil
+	} else if err != nil {
+		return "", fmt.Errorf("failed to check for existence of docker compose file: %v", err)
+	}
+
+	return composeFile, nil
+}
+
+func findDefaultComposeFile() (string, error) {
+	defaultNames := [2]string{"docker-compose.yml", "docker-compose.yaml"}
+
+	for _, name := range defaultNames {
+		if file, err := findComposeFile(name); err != nil {
+			return "", err
+		} else if file != "" {
+			return file, nil
+		}
+	}
+
+	return "", nil
 }
